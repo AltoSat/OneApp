@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#101827">
+<title>HTMLアプリ管理</title>
+<style>
+:root{color-scheme:dark;--bg:#101827;--panel:#192438;--panel2:#223149;--line:#34445c;--text:#f4f7fb;--muted:#aab7c9;--accent:#70a7ff;--danger:#ff7777}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+body{overflow:hidden}
+button,input,textarea{font:inherit}
+button{border:0;border-radius:12px;padding:11px 14px;background:var(--panel2);color:var(--text);font-weight:600}
+button.primary{background:var(--accent);color:#10203a}
+button.danger{background:#512d3a;color:#ffdce2}
+button:disabled{opacity:.45}
+#app{height:100dvh;min-height:100%;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+#runtime{display:none;flex:1;min-height:0;background:white}
+#runtime iframe{width:100%;height:100%;border:0;background:white}
+#empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px;gap:14px}
+#empty .mark{font-size:48px}
+#empty p{color:var(--muted);line-height:1.7;margin:0}
+#edge{position:fixed;z-index:20;right:0;top:40%;height:112px;width:12px;border-radius:12px 0 0 12px;background:#7596c9aa;touch-action:pan-y}
+#drawer{position:fixed;z-index:30;inset:0 0 0 auto;width:min(94vw,560px);height:100dvh;background:var(--bg);border-left:1px solid var(--line);transform:translateX(102%);transition:transform .22s ease;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);box-shadow:-18px 0 45px #0007}
+#drawer.open{transform:translateX(0)}
+#drawerHead{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)}
+#drawerHead h1{font-size:18px;margin:0}
+#content{overflow:auto;padding:14px 16px 28px;display:flex;flex-direction:column;gap:16px}
+.section{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.section h2{font-size:14px;margin:0;color:#d8e5f7}
+label{font-size:12px;color:var(--muted)}
+input[type=text],textarea{width:100%;border:1px solid var(--line);background:#0d1726;color:var(--text);border-radius:10px;padding:11px;outline:none}
+textarea{resize:vertical;min-height:180px;line-height:1.5;font-family:ui-monospace,SFMono-Regular,monospace;font-size:12px}
+#memo{min-height:110px;font-family:inherit;font-size:14px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row>*{flex:1}
+.small{font-size:11px;color:var(--muted);line-height:1.5}
+#charCount{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px;text-align:right}
+#iconPreview{width:48px;height:48px;object-fit:cover;border-radius:12px;background:#0d1726;border:1px solid var(--line)}
+#storageBar{height:9px;background:#0b1421;border-radius:99px;overflow:hidden}
+#storageFill{height:100%;width:0;background:var(--accent);transition:width .2s}
+#toast{position:fixed;z-index:50;bottom:calc(18px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:#e9f1ff;color:#13243d;padding:10px 16px;border-radius:99px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90%;text-align:center}
+#toast.show{opacity:1}
+#overlay{position:fixed;z-index:25;inset:0;background:#0007;display:none}
+#overlay.show{display:block}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="empty">
+    <div class="mark">▣</div>
+    <h2 id="emptyTitle">HTMLアプリを登録してください</h2>
+    <p>管理画面からHTMLを貼り付けて保存すると、ここで実行できます。</p>
+    <button class="primary" id="openFromEmpty">管理画面を開く</button>
+  </div>
+  <main id="runtime"><iframe id="runner" title="登録HTML"></iframe></main>
+</div>
+<div id="edge" aria-label="管理画面を開く"></div>
+<div id="overlay"></div>
+<aside id="drawer" aria-label="管理画面">
+  <header id="drawerHead"><h1>HTMLアプリ管理</h1><button id="closeDrawer" aria-label="閉じる">閉じる ✕</button></header>
+  <div id="content">
+    <section class="section">
+      <h2>アプリ情報</h2>
+      <label for="appName">アプリ名</label>
+      <input id="appName" type="text" maxlength="80" placeholder="アプリ名">
+      <div class="row" style="align-items:center">
+        <img id="iconPreview" alt="アイコンプレビュー">
+        <div style="flex:2">
+          <label for="iconFile">アイコン画像（写真・ファイルから選択）</label>
+          <input id="iconFile" type="file" accept="image/*">
+        </div>
+      </div>
+      <div class="small">画像は正方形に切り抜き、最大512pxのPNGに最適化して保存します。</div>
+    </section>
+    <section class="section">
+      <h2>HTML編集</h2>
+      <textarea id="htmlCode" spellcheck="false" placeholder="<!doctype html> から始まるHTMLコードを貼り付けてください"></textarea>
+      <div id="charCount">0文字</div>
+      <div class="row">
+        <button class="primary" id="saveHtml">保存して実行</button>
+        <button id="copyHtml">HTMLコピー</button>
+      </div>
+      <div class="row">
+        <button id="clearHtml">クリアしてテキスト入力</button>
+        <button id="restoreHtml">1つ前に戻す</button>
+      </div>
+      <div class="small">登録HTMLはiframe内で実行します。信頼できるHTMLのみ登録してください。実行HTMLはこの管理ページと同じ保存領域にアクセスできるため、管理データを含むページ上で不明なコードを実行しないでください。</div>
+    </section>
+    <section class="section">
+      <h2>改善メモ</h2>
+      <textarea id="memo" placeholder="改善したい点を箇条書きで入力してください。自動保存されます。"></textarea>
+      <button class="primary" id="improveShare">改善依頼をコピー・共有</button>
+      <div class="small">改善依頼文とHTMLファイルを共有します。iOSの共有シートでは、共有先によってテキストとファイルの受け渡し方が異なる場合があります。</div>
+    </section>
+    <section class="section">
+      <h2>バックアップ・復元</h2>
+      <div class="row">
+        <button id="exportBackup">JSONを書き出す</button>
+        <button id="importBackup">JSONを読み込む</button>
+      </div>
+      <input id="backupFile" type="file" accept=".json,application/json" hidden>
+      <div class="small">管理データ、HTML、メモ、アイコン、取得可能な実行HTML側のlocalStorageを保存します。IndexedDBはデータ形式や実行環境によって完全な汎用バックアップができないため、この版では自動バックアップ対象外です。</div>
+    </section>
+    <section class="section">
+      <h2>端末内ストレージ（推定）</h2>
+      <div id="storageText" class="small">使用量を確認しています…</div>
+      <div id="storageBar"><div id="storageFill"></div></div>
+      <button id="refreshStorage">使用量を更新</button>
+      <div class="small">ブラウザが返すオリジン単位の推定値です。このアプリだけの正確な容量ではありません。</div>
+    </section>
+    <section class="section">
+      <h2>ホーム画面への追加</h2>
+      <div class="small">Safariの共有メニューから「ホーム画面に追加」を選択してください。同じURLを複数回追加した場合、アイコン・名前・保存領域が個別に分離されることは保証されません。この画面から個別のホーム画面アイコンを自動生成することもできません。</div>
+    </section>
+  </div>
+</aside>
+<div id="toast" role="status"></div>
+<script>
+(() => {
+'use strict';
+const DB_NAME='html-app-manager-v1', STORE='settings', KEY='main';
+const $=id=>document.getElementById(id);
+let db, state={name:'',html:'',previousHtml:'',memo:'',icon:''}, toastTimer;
+const blankIcon='data:image/svg+xml;charset=utf-8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="#26364d"/><text x="50" y="65" text-anchor="middle" font-size="55" fill="#a9c8ff">▣</text></svg>');
+function notify(message){$('toast').textContent=message;$('toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('show'),2300)}
+function openDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,1);req.onupgradeneeded=()=>req.result.createObjectStore(STORE);req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
+function dbGet(){return new Promise((resolve,reject)=>{const r=db.transaction(STORE).objectStore(STORE).get(KEY);r.onsuccess=()=>resolve(r.result||null);r.onerror=()=>reject(r.error)})}
+function dbPut(value){return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).put(value,KEY);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})}
+function updateUI(){ $('appName').value=state.name||''; $('htmlCode').value=state.html||''; $('memo').value=state.memo||''; $('iconPreview').src=state.icon||blankIcon; countChars(); updateRuntime()}
+function countChars(){ $('charCount').textContent=[...$('htmlCode').value].length.toLocaleString('ja-JP')+'文字'}
+function updateRuntime(){const has=!!state.html.trim();$('empty').style.display=has?'none':'flex';$('runtime').style.display=has?'block':'none';$('runner').srcdoc=has?state.html:'';document.title=state.name||'HTMLアプリ管理'}
+async function saveAll(){state.name=$('appName').value.trim();state.memo=$('memo').value;await dbPut(state)}
+async function saveHtml(){const next=$('htmlCode').value;if(!next.trim()){notify('HTMLを入力してください');return}if(next!==state.html){state.previousHtml=state.html;state.html=next}await saveAll();updateRuntime();notify('保存しました')}
+function openDrawer(){ $('drawer').classList.add('open');$('overlay').classList.add('show')}
+function closeDrawer(){ $('drawer').classList.remove('open');$('overlay').classList.remove('show')}
+function formatBytes(n){if(!Number.isFinite(n))return '不明';const u=['B','KB','MB','GB'];let i=0;while(n>=1024&&i<u.length-1){n/=1024;i++}return n.toFixed(i?1:0)+' '+u[i]}
+async function refreshStorage(){if(!navigator.storage?.estimate){$('storageText').textContent='この環境では容量情報を取得できません';return}try{const e=await navigator.storage.estimate(),u=e.usage||0,q=e.quota||0,p=q?Math.min(100,u/q*100):0;$('storageText').textContent=`推定使用量 ${formatBytes(u)} ／ 割当量 ${formatBytes(q)}（${p.toFixed(1)}%）`;$('storageFill').style.width=p+'%'}catch{$('storageText').textContent='容量情報を取得できません'}}
+async function imageToPng(file){const img=await createImageBitmap(file);const side=Math.min(img.width,img.height),sx=(img.width-side)/2,sy=(img.height-side)/2;const c=document.createElement('canvas');c.width=c.height=512;const ctx=c.getContext('2d');ctx.drawImage(img,sx,sy,side,side,0,0,512,512);return c.toDataURL('image/png')}
+function downloadBlob(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500)}
+function readFile(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=()=>reject(r.error);r.readAsText(file)})}
+function getRuntimeLocalStorage(){try{return Object.fromEntries(Object.keys(localStorage).map(k=>[k,localStorage.getItem(k)]).filter(([k])=>!k.startsWith('__html_manager_')))}catch{return null}}
+function restoreRuntimeLocalStorage(data){if(!data||typeof data!=='object')return;try{for(const [k,v] of Object.entries(data))if(typeof v==='string'&&!k.startsWith('__html_manager_'))localStorage.setItem(k,v)}catch(e){throw new Error('localStorageを復元できませんでした: '+e.message)}}
+async function shareImprove(){const prompt='次の修正を実施して全コードを提供してください。\\n\\n'+state.memo;try{await navigator.clipboard.writeText(prompt)}catch{notify('クリップボードへのコピーに失敗しました');return}const htmlBlob=new Blob([state.html],{type:'text/html'});const file=new File([htmlBlob],(state.name||'app')+'.html',{type:'text/html'});try{if(navigator.share&&navigator.canShare?.({files:[file]})){await navigator.share({title:'HTML改善依頼',text:prompt,files:[file]});notify('共有画面を開きました')}else{downloadBlob(htmlBlob,file.name);notify('依頼文をコピーし、HTMLを保存しました')}}catch(e){if(e.name!=='AbortError')notify('共有できませんでした。依頼文はコピー済みです')}}
+async function exportBackup(){await saveAll();const backup={format:'html-app-manager-backup',version:1,exportedAt:new Date().toISOString(),app:state,runtimeLocalStorage:getRuntimeLocalStorage(),limitations:['登録HTML側のIndexedDBは汎用的な完全バックアップ対象外です','localStorageはこのPWAと同じオリジンで参照可能な範囲のみです']};downloadBlob(new Blob([JSON.stringify(backup,null,2)],{type:'application/json'}),'HTMLアプリバックアップ.json');notify('バックアップを書き出しました')}
+async function importBackup(file){try{const obj=JSON.parse(await readFile(file));if(obj.format!=='html-app-manager-backup'||!obj.app||typeof obj.app.html!=='string')throw new Error('対応していないバックアップ形式です');if(!confirm('現在のアプリ情報をバックアップ内容で上書きします。よろしいですか？'))return;state={name:String(obj.app.name||''),html:String(obj.app.html||''),previousHtml:String(obj.app.previousHtml||''),memo:String(obj.app.memo||''),icon:String(obj.app.icon||'')};await dbPut(state);restoreRuntimeLocalStorage(obj.runtimeLocalStorage);updateUI();notify('復元しました（IndexedDBの実行データは対象外です）')}catch(e){alert('復元できませんでした。\\n'+e.message)}}
+$('openFromEmpty').onclick=openDrawer;$('edge').addEventListener('click',openDrawer);$('closeDrawer').onclick=closeDrawer;$('overlay').onclick=closeDrawer;
+$('htmlCode').addEventListener('input',countChars);
+$('appName').addEventListener('input',()=>{state.name=$('appName').value;document.title=state.name||'HTMLアプリ管理'});
+$('memo').addEventListener('input',()=>{state.memo=$('memo').value;clearTimeout(window.memoSaveTimer);window.memoSaveTimer=setTimeout(()=>saveAll().catch(()=>notify('メモを保存できませんでした')),350)});
+$('saveHtml').onclick=()=>saveHtml().catch(e=>notify('保存に失敗しました: '+e.message));
+$('copyHtml').onclick=async()=>{try{await navigator.clipboard.writeText($('htmlCode').value);notify('HTMLをコピーしました')}catch{notify('コピーできませんでした')}};
+$('clearHtml').onclick=()=>{if(confirm('編集欄のHTMLを消去します。保存済みHTMLは変更されません。')){$('htmlCode').value='';countChars()}};
+$('restoreHtml').onclick=()=>{if(!state.previousHtml){notify('戻せる履歴がありません');return}if(confirm('1つ前のHTMLを編集欄に戻しますか？')){$('htmlCode').value=state.previousHtml;countChars()}};
+$('iconFile').onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{state.icon=await imageToPng(f);$('iconPreview').src=state.icon;await saveAll();notify('アイコンを保存しました')}catch{notify('画像を読み込めませんでした')}};
+$('improveShare').onclick=shareImprove;$('exportBackup').onclick=()=>exportBackup().catch(e=>notify('書き出しに失敗しました'));$('importBackup').onclick=()=>$('backupFile').click();$('backupFile').onchange=e=>{const f=e.target.files?.[0];if(f)importBackup(f);e.target.value=''};
+$('refreshStorage').onclick=refreshStorage;
+let touchStartX=null;document.addEventListener('touchstart',e=>{if(e.touches.length===1)touchStartX=e.touches[0].clientX},{passive:true});document.addEventListener('touchend',e=>{if(touchStartX===null)return;const x=e.changedTouches[0].clientX,dx=x-touchStartX;if(touchStartX>window.innerWidth-24&&dx<-55)openDrawer();else if($('drawer').classList.contains('open')&&dx>70&&touchStartX>window.innerWidth-80)closeDrawer();touchStartX=null},{passive:true});
+(async()=>{try{db=await openDB();const saved=await dbGet();if(saved)state={...state,...saved};updateUI();await refreshStorage();if(!state.html)openDrawer()}catch(e){notify('初期化に失敗しました: '+e.message)}})();
+})();
+</script>
+</body>
+</html>
