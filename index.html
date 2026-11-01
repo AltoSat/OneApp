@@ -9,8 +9,8 @@
 <style>
 :root{color-scheme:dark;--bg:#0e1116;--panel:#161b23;--line:#2a3140;--text:#e6ebf3;--muted:#8b96a9;--accent:#4d8df7}
 *{box-sizing:border-box}
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,sans-serif;overscroll-behavior:none}
-html{background:var(--bg)}
+html{height:100%;background:var(--bg)}
+body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,sans-serif;overscroll-behavior:none}
 button,input,textarea{font:inherit;font-size:16px}
 button{border:1px solid var(--line);border-radius:12px;padding:11px 13px;min-height:44px;background:#1b212b;color:var(--text);font-weight:650;-webkit-tap-highlight-color:transparent}
 button:active{background:#242c3a}
@@ -20,17 +20,20 @@ button.danger{color:#ff9aa8;background:#2a161c;border-color:#4d2530}
 input[type=text],textarea{width:100%;max-width:100%;min-width:0;border:1px solid var(--line);border-radius:11px;padding:12px;background:#0d1015;color:var(--text);font-size:16px!important;line-height:1.5;overflow-wrap:anywhere}
 input::placeholder,textarea::placeholder{color:#5a6478}
 textarea{resize:vertical}
-/* 下端の黒帯対策：dvh を使わず fixed inset:0 のみで敷き詰める */
+/* 全画面コンテナ：fixed inset:0 のみ。dvh/vh は使わない */
 #app{position:fixed;inset:0;overflow:hidden;background:var(--bg)}
+/* スクロール内容側で Safe Area を1回だけ加算 */
 #stage{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;background:var(--bg);padding:calc(20px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom))}
 .card{max-width:560px;width:100%;margin:0 auto 14px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:14px;box-shadow:0 8px 28px #00000055}
 h1{font-size:21px;margin:0}h2{font-size:15px;margin:0}p,.hint{font-size:13px;line-height:1.6;color:var(--muted);margin:0}
+.step{margin:0;font-size:14px;font-weight:600;color:var(--text)}
 .field{display:flex;flex-direction:column;gap:7px}
 .field label{font-size:13px;font-weight:650;color:#a9b4c6}
 #iconPreview{flex:none!important;width:76px;height:76px;aspect-ratio:1/1;object-fit:cover;border-radius:18px;border:1px solid var(--line);background:#0d1015}
 #htmlSetup{height:40vh;min-height:220px;font-family:ui-monospace,monospace}
-#runtime{position:absolute;inset:0;display:none;background:#0e1116}
-#runner{width:100%;height:100%;border:0;display:block;background:#fff}
+/* HTML実行：runtime を全画面フィル、iframe は絶対配置で確実にフィル */
+#runtime{position:absolute;inset:0;display:none;background:var(--bg)}
+#runner{position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:#fff}
 #edge{position:fixed;z-index:20;right:0;top:calc(50% - 60px);width:28px;height:120px;min-height:0;padding:0;border:0;border-radius:0;background:transparent;touch-action:pan-y;-webkit-tap-highlight-color:transparent}
 #edge::before{content:"";position:absolute;right:0;top:12px;bottom:12px;width:3px;border-radius:3px 0 0 3px;background:#ffffff1f;transition:width .18s,background .18s}
 #edge.pull::before,#edge:active::before{width:5px;background:#4d8df7b3}
@@ -62,18 +65,24 @@ h1{font-size:21px;margin:0}h2{font-size:15px;margin:0}p,.hint{font-size:13px;lin
 <div id="app">
 <div id="stage">
 <section class="card" id="setup">
-<h1>アプリ名とアイコン</h1>
-<p>アプリ名とアイコンを決めたら、Safariの共有メニューからホーム画面に追加してください。</p>
-<div class="field"><label for="setupName">アプリ名</label><input id="setupName" type="text" maxlength="60" placeholder="ホーム画面に表示する名前"></div>
-<div class="row" style="align-items:center"><img id="iconPreview" alt="アイコン"><div class="field" style="flex:2"><label for="iconFile">アプリアイコン</label><input id="iconFile" type="file" accept="image/*"><span class="hint">正方形に切り抜きます。</span></div></div>
-</section>
-<section class="card" id="homeStep">
-<h1>ホーム画面に追加してください</h1>
-<p>Safariの共有メニューから「ホーム画面に追加」を選択してください。追加したアイコンから起動すると、HTMLの登録画面が表示されます。</p>
+<h1>OneApp</h1>
+<div class="field">
+<label for="setupName">① アプリ名を入力</label>
+<input id="setupName" type="text" maxlength="60">
+</div>
+<div class="field">
+<label>② アプリアイコンを登録</label>
+<div class="row" style="align-items:center">
+<img id="iconPreview" alt="アイコン">
+<input id="iconFile" type="file" accept="image/*" style="flex:2">
+</div>
+</div>
+<button class="primary" id="addHome">③ ホーム画面に追加</button>
+<p class="step">④ 追加したアイコンから起動</p>
+<p class="step">⑤ HTMLを登録</p>
 </section>
 <section class="card" id="htmlStep" hidden>
 <h1>HTMLを登録</h1>
-<p>このアプリで実行するHTMLを貼り付けて保存してください。保存すると管理画面が使えるようになります。</p>
 <textarea id="htmlSetup" spellcheck="false" placeholder="<!doctype html> から始まるHTML"></textarea>
 <div id="setupCount" class="count">0文字</div>
 <button class="primary" id="firstSave">HTMLを保存して開始</button>
@@ -85,7 +94,7 @@ h1{font-size:21px;margin:0}h2{font-size:15px;margin:0}p,.hint{font-size:13px;lin
 <header id="head"><strong>OneApp</strong><button id="close">閉じる ✕</button></header>
 <nav id="tabs"><button class="tab active" data-panel="memoPanel">改善メモ</button><button class="tab" data-panel="htmlPanel">HTML編集</button><button class="tab" data-panel="backupPanel">バックアップ</button></nav>
 <div id="panels">
-<section class="panel active" id="memoPanel"><div class="section"><h2>改善メモ</h2><textarea id="memo" maxlength="10000" placeholder="改善したい点を箇条書きで入力してください。自動保存されます。"></textarea><div id="memoCount" class="count">0 / 10,000文字</div><div class="row"><button class="danger" id="clearMemo">クリア</button><button class="primary" id="improve">改善依頼をコピー・共有</button></div></div></section>
+<section class="panel active" id="memoPanel"><div class="section"><h2>改善メモ</h2><textarea id="memo" maxlength="10000" placeholder="改善したい点を箇条書きで入力してください。自動保存されます。"></textarea><div id="memoCount" class="count">0 / 10,000文字</div><div class="row"><button class="danger" id="clearMemo">クリア</button><button class="primary" id="improve">AIに改善依頼</button></div></div></section>
 <section class="panel" id="htmlPanel"><div class="section"><h2>HTML編集</h2><textarea id="htmlCode" spellcheck="false" placeholder="HTMLコード"></textarea><div id="htmlCount" class="count">0文字</div><div class="row"><button class="primary" id="saveHtml">保存して実行</button><button id="copyHtml">HTMLコピー</button></div><div class="row"><button id="clearHtml">編集欄をクリア</button><button id="restoreHtml">1つ前に戻す</button></div></div></section>
 <section class="panel" id="backupPanel">
 <div class="section"><h2>バックアップ・復元</h2><div class="row"><button id="export">JSONを書き出す</button><button id="import">JSONを読み込む</button></div><input id="backupFile" type="file" accept=".json,application/json" hidden><p class="hint">管理データ、HTML、直前のHTML、改善メモ、アイコン、取得可能なlocalStorageを保存します。HTML側のIndexedDBは汎用的な完全バックアップを保証できません。</p></div>
@@ -103,7 +112,7 @@ function openDB(){return new Promise((ok,no)=>{let r=indexedDB.open(DB,1);r.onup
 function get(){return new Promise((ok,no)=>{let r=db.transaction(STORE).objectStore(STORE).get(KEY);r.onsuccess=()=>ok(r.result||null);r.onerror=()=>no(r.error)})}
 function put(){return new Promise((ok,no)=>{let t=db.transaction(STORE,'readwrite');t.objectStore(STORE).put(s,KEY);t.oncomplete=ok;t.onerror=()=>no(t.error)})}
 function meta(){const n=s.name||'OneApp';document.title=n;let m=document.querySelector('meta[name="apple-mobile-web-app-title"]');if(m)m.content=n;if(s.icon){let l=document.querySelector('link[rel="apple-touch-icon"]');if(!l){l=document.createElement('link');l.rel='apple-touch-icon';document.head.append(l)}l.href=s.icon}}
-function stage(which){const web=which==='setup';$('setup').hidden=!web;$('homeStep').hidden=!web;$('htmlStep').hidden=which!=='html';$('stage').hidden=which==='run';$('runtime').style.display=which==='run'?'block':'none';$('edge').style.display=(which==='run'&&standalone)?'block':'none'}
+function stage(which){$('setup').hidden=which!=='setup';$('htmlStep').hidden=which!=='html';$('stage').hidden=which==='run';$('runtime').style.display=which==='run'?'block':'none';$('edge').style.display=(which==='run'&&standalone)?'block':'none'}
 function render(){
   $('setupName').value=s.name;
   $('iconPreview').src=s.icon||iconDefault;
@@ -118,19 +127,24 @@ function drawerOpen(){if(!standalone||!s.html)return;$('drawer').classList.add('
 function drawerClose(){$('drawer').classList.remove('open');$('shade').classList.remove('show');$('edge').style.display=(standalone&&s.html)?'block':'none'}
 function tab(id){document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.panel===id));document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id===id));$('panels').scrollTop=0;if(id==='backupPanel')storage()}
 async function png(f){let b=await createImageBitmap(f),z=Math.min(b.width,b.height),c=document.createElement('canvas');c.width=c.height=512;c.getContext('2d').drawImage(b,(b.width-z)/2,(b.height-z)/2,z,z,0,0,512,512);return c.toDataURL('image/png')}
-async function chooseIcon(f){if(!f)return;try{s.icon=await png(f);$('iconPreview').src=s.icon;meta();toast('アイコンを設定しました')}catch{toast('画像を読み込めませんでした')}}
+async function chooseIcon(f){if(!f)return;try{s.icon=await png(f);$('iconPreview').src=s.icon;meta();toast('アイコンを登録しました')}catch{toast('画像を読み込めませんでした')}}
 function bytes(n){let u=['B','KB','MB','GB'],i=0;while(n>=1024&&i<3){n/=1024;i++}return n.toFixed(i?1:0)+' '+u[i]}
 async function storage(){try{let e=await navigator.storage.estimate(),u=e.usage||0,q=e.quota||0,p=q?100*u/q:0;$('storageText').textContent=`推定使用量 ${bytes(u)} ／ 割当量 ${bytes(q)}（${p.toFixed(1)}%）`;$('storageFill').style.width=Math.min(100,p)+'%'}catch{$('storageText').textContent='取得できません'}}
 function download(blob,name){let u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1500)}
 function localData(){try{return Object.fromEntries(Object.keys(localStorage).map(k=>[k,localStorage.getItem(k)]).filter(([k])=>!k.startsWith('__manager_')))}catch{return null}}
 async function saveHtml(){let v=$('htmlCode').value;if(!v.trim()){toast('HTMLを入力してください');return}if(v!==s.html){s.previousHtml=s.html;s.html=v}await put();$('runner').srcdoc=s.html;drawerClose();stage('run');toast('HTMLを保存しました')}
 async function share(){let text='次の修正を実施して全コードを提供してください。\n\n'+s.memo;try{await navigator.clipboard.writeText(text)}catch{toast('コピーできませんでした');return}let f=new File([s.html],(s.name||'app')+'.html',{type:'text/html'});try{if(navigator.share&&navigator.canShare?.({files:[f]})){await navigator.share({title:'HTML改善依頼',text,files:[f]});toast('共有画面を開きました')}else{download(f,f.name);toast('依頼文をコピーしHTMLを保存しました')}}catch(e){if(e.name!=='AbortError')toast('共有に失敗しました。依頼文はコピー済みです')}}
-async function exportBackup(){let o={format:'html-app-manager-backup',version:2,exportedAt:new Date().toISOString(),app:s,localStorage:localData(),limitations:['HTML側IndexedDBは汎用バックアップ対象外','localStorageは同一オリジンで参照できる範囲']};download(new Blob([JSON.stringify(o,null,2)],{type:'application/json'}),'HTMLアプリバックアップ.json');toast('バックアップを書き出しました')}
+async function exportBackup(){let o={format:'html-app-manager-backup',version:2,exportedAt:new Date().toISOString(),app:s,localStorage:localData(),limitations:['HTML側IndexedDBは汎用バックアップ対象外','localStorageは同一オリジンで参照できる範囲']};download(new Blob([JSON.stringify(o,null,2)],{type:'application/json'}),`バックアップ(${s.name||'OneApp'}).json`);toast('バックアップを書き出しました')}
 async function importBackup(f){try{let o=JSON.parse(await f.text());if(o.format!=='html-app-manager-backup'||!o.app||typeof o.app.html!=='string')throw Error('対応していないファイルです');if(!confirm('現在の内容を上書きして復元しますか？'))return;s={...s,...o.app};await put();if(o.localStorage&&confirm('バックアップ内のlocalStorageも復元しますか？'))for(let[k,v]of Object.entries(o.localStorage))if(typeof v==='string')localStorage.setItem(k,v);render();toast('復元しました。IndexedDBの実行データは対象外です')}catch(e){alert('復元できませんでした：'+e.message)}}
-/* ブラウザ表示時：名前とアイコンは保存せず、その場でメタ情報だけ更新 */
+
+/* ブラウザ表示：①名前・②アイコンはメタ情報だけ更新、③で共有メニューを開く */
 $('setupName').addEventListener('input',()=>{s.name=$('setupName').value.trim();meta()});
 $('iconFile').onchange=e=>chooseIcon(e.target.files?.[0]);
+$('addHome').onclick=async()=>{const url=location.href;try{if(navigator.share){await navigator.share({title:s.name||'OneApp',url});toast('共有メニューから「ホーム画面に追加」を選択してください')}else{toast('Safariの共有ボタンから「ホーム画面に追加」を選択してください')}}catch(e){if(e.name!=='AbortError')toast('共有メニューを開けませんでした')}};
+
+/* PWA：HTML未登録時の初回保存 */
 $('firstSave').onclick=async()=>{let v=$('htmlSetup').value;if(!v.trim()){toast('HTMLを入力してください');return}s.html=v;s.previousHtml='';s.memo='';await put();render();toast('HTMLを登録しました')};
+
 $('htmlSetup').addEventListener('input',counts);$('htmlCode').addEventListener('input',counts);
 $('saveHtml').onclick=()=>saveHtml().catch(e=>toast('保存に失敗しました：'+e.message));
 $('copyHtml').onclick=async()=>{try{await navigator.clipboard.writeText($('htmlCode').value);toast('HTMLをコピーしました')}catch{toast('コピーできませんでした')}};
